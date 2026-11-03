@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#11151c" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="description" content="2D гонки: трафик, дождь, туман, погоня ДПС. Офлайн в одном файле." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23202a38'/><rect x='25' y='12' width='14' height='40' rx='5' fill='%23e63946'/><rect x='28' y='19' width='8' height='10' rx='2' fill='%23bfe4ff'/><rect x='28' y='35' width='8' height='7' rx='2' fill='%23ffb3b3'/></svg>" />
+<title>2D Гонки — трафик, дождь, ДПС</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 0%, #22314a, #0a0d13 70%);
+    font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+    color: #fff;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px; }
+
+  .game {
+    position: relative;
+    height: min(90vh, 720px);
+    aspect-ratio: 2 / 3;
+    border-radius: 18px;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .6), 0 0 0 4px rgba(255, 255, 255, .07);
+    cursor: pointer;
+  }
+
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .tip { margin: 0; font-size: 12.5px; color: rgba(255, 255, 255, .4); text-align: center; }
+
+  [hidden] { display: none !important; }
+
+  .sound {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 6;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    font-size: 16px;
+    color: #fff;
+    background: rgba(10, 16, 24, .45);
+    border: 1px solid rgba(255, 255, 255, .2);
+    border-radius: 11px;
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+    transition: transform .12s ease, background .2s ease;
+  }
+  .sound:hover { background: rgba(10, 16, 24, .65); }
+  .sound:active { transform: scale(.92); }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6, 10, 16, .5);
+    backdrop-filter: blur(3px);
+    pointer-events: none;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity .25s ease, visibility .25s;
+  }
+  .overlay.hidden { opacity: 0; visibility: hidden; }
+
+  .card {
+    pointer-events: auto;
+    width: 87%;
+    max-height: 92%;
+    overflow-y: auto;
+    padding: 20px 18px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .04));
+    box-shadow: 0 18px 44px rgba(0, 0, 0, .45);
+    backdrop-filter: blur(10px);
+    scrollbar-width: none;
+  }
+  .card::-webkit-scrollbar { display: none; }
+
+  .badge {
+    display: inline-block;
+    margin-bottom: 8px;
+    padding: 4px 12px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .18em;
+    color: #cfe6ff;
+    background: linear-gradient(180deg, #3a6fd8, #1f3f96);
+    border-radius: 999px;
+    box-shadow: 0 3px 12px rgba(50, 100, 220, .5);
+  }
+
+  .card h1 {
+    margin: 0 0 4px;
+    font-size: clamp(21px, 5.6vw, 29px);
+    font-weight: 800;
+    letter-spacing: .02em;
+    text-shadow: 0 3px 0 rgba(0, 0, 0, .35);
+  }
+
+  .card > p {
+    margin: 0 0 12px;
+    font-size: 12.5px;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, .68);
+  }
+
+  .row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+  .row .lbl {
+    flex: none;
+    width: 68px;
+    text-align: left;
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, .58);
+  }
+
+  .seg {
+    flex: 1;
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    background: rgba(0, 0, 0, .32);
+    border-radius: 10px;
+  }
+  .seg button {
+    flex: 1;
+    padding: 6px 0;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: rgba(255, 255, 255, .55);
+    background: none;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .seg button:hover { color: #fff; }
+  .seg button.on {
+    color: #fff;
+    background: linear-gradient(180deg, #4a8ee8, #2f6bff);
+    box-shadow: 0 2px 8px rgba(47, 107, 255, .45);
+  }
+
+  .scores { display: flex; gap: 12px; justify-content: center; margin: 4px 0 0; }
+  .score-item { flex: 1; padding: 10px 6px; border-radius: 14px; background: rgba(0, 0, 0, .24); }
+  .score-item span {
+    display: block;
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, .6);
+  }
+  .score-item b { display: block; margin-top: 2px; font-size: 24px; font-weight: 800; }
+
+  .btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 13px 20px;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    color: #0b1a2e;
+    border: 0;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #7fd0ff, #2f9bff);
+    box-shadow: 0 6px 0 #1b5fa8, 0 10px 22px rgba(0, 0, 0, .35);
+    cursor: pointer;
+    transition: transform .1s ease, box-shadow .1s ease;
+  }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #1b5fa8, 0 6px 14px rgba(0, 0, 0, .35); }
+
+  .link {
+    display: block;
+    margin: 12px auto 0;
+    padding: 4px 8px;
+    font: inherit;
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, .5);
+    background: none;
+    border: 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, .3);
+    cursor: pointer;
+  }
+  .link:hover { color: rgba(255, 255, 255, .85); }
+
+  .nitro {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    z-index: 5;
+    width: 76px;
+    height: 76px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    color: #bff0ff;
+    background: radial-gradient(circle at 50% 35%, rgba(60, 190, 255, .45), rgba(10, 30, 50, .75));
+    border: 2px solid rgba(110, 220, 255, .6);
+    border-radius: 50%;
+    box-shadow: 0 0 18px rgba(60, 190, 255, .35), inset 0 0 16px rgba(60, 190, 255, .25);
+    cursor: pointer;
+    touch-action: none;
+    transition: transform .1s ease, box-shadow .15s ease;
+  }
+  .nitro.on {
+    transform: scale(.94);
+    box-shadow: 0 0 30px rgba(120, 230, 255, .8), inset 0 0 22px rgba(120, 230, 255, .5);
+  }
+
+  @media (max-height: 640px) {
+    .tip { display: none; }
+    .game { height: 95vh; }
+    .card { padding: 16px 16px; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="game" id="game">
+      <canvas id="canvas"></canvas>
+      <button class="sound" id="soundBtn" type="button" aria-label="Звук">🔊</button>
+
+      <div class="overlay" id="overlay">
+        <div class="card">
+          <div class="badge" id="badge">2D RACER</div>
+          <h1 id="title">2D Гонки</h1>
+          <p id="hint">Уходи от трафика. Иногда за тобой приедет ДПС.</p>
+
+          <div class="settings" id="settingsBox">
+            <div class="row">
+              <span class="lbl">Трафик</span>
+              <div class="seg" data-key="traffic">
+                <button type="button" data-v="low">Низкий</button>
+                <button type="button" data-v="med">Средний</button>
+                <button type="button" data-v="high">Высокий</button>
+              </div>
+            </div>
+            <div class="row">
+              <span class="lbl">Погода</span>
+              <div class="seg" data-key="weather">
+                <button type="button" data-v="clear">Ясно</button>
+                <button type="button" data-v="rain">Дождь</button>
+                <button type="button" data-v="fog">Туман</button>
+              </div>
+            </div>
+            <div class="row">
+              <span class="lbl">Сложность</span>
+              <div class="seg" data-key="diff">
+                <button type="button" data-v="calm">Спокойно</button>
+                <button type="button" data-v="normal">Быстро</button>
+                <button type="button" data-v="hard">Хардкор</button>
+              </div>
+            </div>
+            <div class="row">
+              <span class="lbl">ДПС</span>
+              <div class="seg" data-key="police">
+                <button type="button" data-v="low">Редко</button>
+                <button type="button" data-v="mid">Иногда</button>
+                <button type="button" data-v="high">Часто</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="scores" id="scores" hidden>
+            <div class="score-item"><span>Дистанция</span><b id="scoreVal">0</b></div>
+            <div class="score-item"><span>Рекорд</span><b id="bestVal">0</b></div>
+          </div>
+
+          <button class="btn" id="playBtn" type="button">Поехали</button>
+          <button class="link" id="backBtn" type="button" hidden>Настройки</button>
+        </div>
+      </div>
+
+      <button class="nitro" id="nitroBtn" type="button" hidden>NITRO</button>
+    </div>
+
+    <p class="tip">← → / A D — руль · Пробел / Shift — нитро · тап — поворот</p>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ======================= КОНСТАНТЫ =======================
+  const W = 400;
+  const H = 600;
+
+  const ROAD_L = 52;
+  const ROAD_R = 348;
+  const LANES = 4;
+  const LANE_W = (ROAD_R - ROAD_L) / LANES;
+
+  const CAR_W = 42;
+  const CAR_H = 76;
+
+  const TRAFFIC_CFG = {
+    low:  { interval: 1.25, extra: 0.00 },
+    med:  { interval: 0.86, extra: 0.10 },
+    high: { interval: 0.58, extra: 0.22 },
+  };
+
+  const DIFF_CFG = {
+    calm:   { base: 235, add: 90,  ramp: 0.035 },
+    normal: { base: 305, add: 150, ramp: 0.055 },
+    hard:   { base: 375, add: 220, ramp: 0.080 },
+  };
+
+  const POLICE_CFG = {
+    low:  { min: 1500, spread: 1300 },
+    mid:  { min: 900,  spread: 900 },
+    high: { min: 520,  spread: 520 },
+  };
+
+  const CAR_COLORS = [
+    ['#4f7fd8', '#274b91'],
+    ['#e0a92f', '#9a6f13'],
+    ['#8f8f9c', '#565663'],
+    ['#3fae7d', '#1f6f4c'],
+    ['#b855b0', '#6f2a6b'],
+    ['#d9694f', '#8e3a26'],
+    ['#d9dde4', '#9aa0aa'],
+  ];
+
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+  // ======================= НАСТРОЙКИ =======================
+  const DEFAULTS = { traffic: 'med', weather: 'clear', diff: 'normal', police: 'mid' };
+  const settings = Object.assign({}, DEFAULTS);
+
+  function loadSettings() {
+    try {
+      const raw = JSON.parse(localStorage.getItem('racer-settings') || '{}');
+      for (const k of Object.keys(DEFAULTS)) {
+        const v = raw[k];
+        if (k === 'traffic' && TRAFFIC_CFG[v]) settings[k] = v;
+        if (k === 'weather' && ['clear', 'rain', 'fog'].includes(v)) settings[k] = v;
+        if (k === 'diff' && DIFF_CFG[v]) settings[k] = v;
+        if (k === 'police' && POLICE_CFG[v]) settings[k] = v;
+      }
+      const b = parseInt(localStorage.getItem('racer-best') || '0', 10);
+      if (isFinite(b)) best = b;
+    } catch (e) { /* приватный режим / file:// */ }
+  }
+
+  function saveSettings() {
+    try { localStorage.setItem('racer-settings', JSON.stringify(settings)); } catch (e) { /* ignore */ }
+  }
+
+  // ======================= СОСТОЯНИЕ =======================
+  let mode = 'menu';
+  let best = 0;
+
+  let distance = 0;
+  let bonus = 0;
+  let worldSpeed = 0;
+  let roadScroll = 0;
+  let elapsed = 0;
+
+  let spawnTimer = 0;
+  let traffic = [];
+  let particles = [];
+  let puddles = [];
+  let rainDrops = [];
+
+  let nitro = 100;
+  let boostHeld = false;
+  let boosting = false;
+
+  let shake = 0;
+  let flash = 0;
+  let toast = null;
+  let overlayTimer = 0;
+
+  let chaseActive = false;
+  let chaseTime = 0;
+  let chaseTotal = 0;
+  let police = null;
+  let nextPoliceAt = 600;
+
+  const player = { x: W / 2, y: H * 0.74, w: CAR_W, h: CAR_H, vx: 0 };
+
+  // ввод
+  let pointerActive = false;
+  let pointerX = W / 2;
+  let keyLeft = false;
+  let keyRight = false;
+
+  // ======================= DOM =======================
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const titleEl = document.getElementById('title');
+  const hintEl = document.getElementById('hint');
+  const badgeEl = document.getElementById('badge');
+  const settingsBox = document.getElementById('settingsBox');
+  const scoresEl = document.getElementById('scores');
+  const scoreValEl = document.getElementById('scoreVal');
+  const bestValEl = document.getElementById('bestVal');
+  const playBtn = document.getElementById('playBtn');
+  const backBtn = document.getElementById('backBtn');
+  const soundBtn = document.getElementById('soundBtn');
+  const nitroBtn = document.getElementById('nitroBtn');
+
+  // ======================= КАНВАС =======================
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // ======================= ЗВУК =======================
+  let actx = null;
+  let muted = false;
+
+  function audio() {
+    if (!actx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      actx = new Ctx();
+    }
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+
+  function tone(type, f1, f2, dur, vol, delay) {
+    const a = audio();
+    if (!a) return;
+    const t = a.currentTime + (delay || 0);
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f1, t);
+    if (f2 && f2 !== f1) o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g);
+    g.connect(a.destination);
+    o.start(t);
+    o.stop(t + dur + 0.03);
+  }
+
+  function sound(kind) {
+    if (muted) return;
+    if (!audio()) return;
+    if (kind === 'crash') {
+      tone('sawtooth', 240, 40, 0.5, 0.15);
+      tone('square', 90, 30, 0.42, 0.1, 0.02);
+    } else if (kind === 'alert') {
+      tone('square', 880, 880, 0.12, 0.07);
+      tone('square', 640, 640, 0.14, 0.07, 0.16);
+    } else if (kind === 'escape') {
+      tone('sine', 660, 660, 0.12, 0.09);
+      tone('sine', 990, 990, 0.18, 0.09, 0.12);
+    } else if (kind === 'nitro') {
+      tone('sawtooth', 160, 900, 0.3, 0.055);
+    }
+  }
+
+  let siren = null;
+
+  function startSiren() {
+    if (muted) return;
+    const a = audio();
+    if (!a || siren) return;
+    const osc = a.createOscillator();
+    const gain = a.createGain();
+    const lfo = a.createOscillator();
+    const depth = a.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.value = 720;
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.8;
+    depth.gain.value = 240;
+
+    lfo.connect(depth);
+    depth.connect(osc.frequency);
+    gain.gain.value = 0.026;
+    osc.connect(gain);
+    gain.connect(a.destination);
+
+    osc.start();
+    lfo.start();
+    siren = { osc, gain, lfo };
+  }
+
+  function stopSiren() {
+    if (!siren) return;
+    const a = actx;
+    const s = siren;
+    siren = null;
+    if (!a) return;
+    try {
+      s.gain.gain.cancelScheduledValues(a.currentTime);
+      s.gain.gain.setTargetAtTime(0.0001, a.currentTime, 0.06);
+      s.osc.stop(a.currentTime + 0.4);
+      s.lfo.stop(a.currentTime + 0.4);
+    } catch (e) { /* already stopped */ }
+  }
+
+  // ======================= ЗВУК ДВИГАТЕЛЯ И ДОЖДЯ =======================
+  let engine = null;
+  let rainNoise = null;
+
+  function startEngine() {
+    if (muted) return;
+    const a = audio();
+    if (!a || engine) return;
+
+    const osc1 = a.createOscillator();
+    osc1.type = 'sawtooth';
+    osc1.frequency.value = 62;
+
+    const osc2 = a.createOscillator();
+    osc2.type = 'square';
+    osc2.frequency.value = 125;
+
+    const sub = a.createGain();
+    sub.gain.value = 0.32;
+
+    const filter = a.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 900;
+    filter.Q.value = 5;
+
+    const gain = a.createGain();
+    gain.gain.value = 0.0001;
+
+    osc1.connect(filter);
+    osc2.connect(sub);
+    sub.connect(filter);
+    filter.connect(gain);
+    gain.connect(a.destination);
+
+    osc1.start();
+    osc2.start();
+    gain.gain.setTargetAtTime(0.026, a.currentTime, 0.25);
+
+    engine = { osc1, osc2, filter, gain };
+  }
+
+  function updateEngine() {
+    if (!engine || !actx) return;
+    const t = actx.currentTime;
+    const norm = clamp((worldSpeed - 150) / 420, 0, 1);
+
+    const f = 56 + norm * 105 + (boosting ? 22 : 0);
+    engine.osc1.frequency.setTargetAtTime(f, t, 0.07);
+    engine.osc2.frequency.setTargetAtTime(f * 2.02, t, 0.07);
+    engine.filter.frequency.setTargetAtTime(520 + norm * 1500 + (boosting ? 700 : 0), t, 0.09);
+    engine.gain.gain.setTargetAtTime(boosting ? 0.042 : 0.026, t, 0.15);
+  }
+
+  function stopEngine() {
+    if (!engine) return;
+    const a = actx;
+    const e = engine;
+    engine = null;
+    if (!a) return;
+    try {
+      e.gain.gain.cancelScheduledValues(a.currentTime);
+      e.gain.gain.setTargetAtTime(0.0001, a.currentTime, 0.08);
+      e.osc1.stop(a.currentTime + 0.5);
+      e.osc2.stop(a.currentTime + 0.5);
+    } catch (err) { /* already stopped */ }
+  }
+
+  function startRainSound() {
+    if (muted) return;
+    const a = audio();
+    if (!a || rainNoise) return;
+
+    const len = Math.floor(a.sampleRate * 2);
+    const buffer = a.createBuffer(1, len, a.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+
+    const src = a.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+
+    const hp = a.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 700;
+
+    const lp = a.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 3200;
+
+    const gain = a.createGain();
+    gain.gain.value = 0.0001;
+
+    src.connect(hp);
+    hp.connect(lp);
+    lp.connect(gain);
+    gain.connect(a.destination);
+    src.start();
+    gain.gain.setTargetAtTime(0.04, a.currentTime, 0.5);
+
+    rainNoise = { src, gain };
+  }
+
+  function stopRainSound() {
+    if (!rainNoise) return;
+    const a = actx;
+    const r = rainNoise;
+    rainNoise = null;
+    if (!a) return;
+    try {
+      r.gain.gain.cancelScheduledValues(a.currentTime);
+      r.gain.gain.setTargetAtTime(0.0001, a.currentTime, 0.15);
+      r.src.stop(a.currentTime + 0.8);
+    } catch (err) { /* already stopped */ }
+  }
+
+  // Поддерживает фоновые звуки в соответствии с режимом и погодой
+  function syncAmbient() {
+    if (!actx) return;
+    if (muted) {
+      stopEngine();
+      stopRainSound();
+      stopSiren();
+      return;
+    }
+    if (mode === 'play') startEngine();
+    else stopEngine();
+
+    if (settings.weather === 'rain') startRainSound();
+    else stopRainSound();
+
+    if (chaseActive) startSiren();
+    else stopSiren();
+  }
+
+  soundBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    muted = !muted;
+    soundBtn.textContent = muted ? '🔇' : '🔊';
+    if (!muted) audio();
+    syncAmbient();
+  });
+
+  // ======================= ДОЖДЬ / ЛУЖИ / ЧАСТИЦЫ =======================
+  function initRain() {
+    rainDrops = Array.from({ length: 110 }, () => ({
+      x: Math.random() * (W + 120) - 60,
+      y: Math.random() * H,
+      len: 10 + Math.random() * 16,
+      spd: 700 + Math.random() * 500,
+    }));
+  }
+
+  function updateRain(dt) {
+    if (settings.weather !== 'rain') return;
+    for (const d of rainDrops) {
+      d.y += d.spd * dt;
+      d.x -= d.spd * 0.28 * dt;
+      if (d.y > H) {
+        d.y = -20;
+        d.x = Math.random() * (W + 120) - 40;
+      }
+      if (d.x < -60) d.x = W + 40;
+    }
+  }
+
+  function initPuddles() {
+    puddles = Array.from({ length: 12 }, () => ({
+      x: ROAD_L + 14 + Math.random() * (ROAD_R - ROAD_L - 28),
+      y: Math.random() * H,
+      rx: 14 + Math.random() * 26,
+      ry: 6 + Math.random() * 10,
+    }));
+  }
+
+  function updatePuddles(dt, speed) {
+    if (settings.weather !== 'rain') return;
+    for (const p of puddles) {
+      p.y += speed * dt;
+      if (p.y > H + 40) {
+        p.y = -40;
+        p.x = ROAD_L + 14 + Math.random() * (ROAD_R - ROAD_L - 28);
+      }
+    }
+  }
+
+  function addParticle(x, y, vx, vy, life, size, color) {
+    if (particles.length > 170) particles.shift();
+    particles.push({ x, y, vx, vy, life, max: life, size, color });
+  }
+
+  function burst(x, y, n, palette, power) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = (0.4 + Math.random()) * (power || 220);
+      addParticle(
+        x, y,
+        Math.cos(a) * s,
+        Math.sin(a) * s - 40,
+        0.4 + Math.random() * 0.5,
+        2 + Math.random() * 4,
+        palette[Math.floor(Math.random() * palette.length)]
+      );
+    }
+  }
+
+  function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 1 - 1.6 * dt;
+      p.vy = p.vy * (1 - 1.6 * dt) + 120 * dt;
+      p.life -= dt;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  // ======================= НАСТРОЙКИ UI =======================
+  function syncSegs() {
+    document.querySelectorAll('.seg').forEach((seg) => {
+      const key = seg.dataset.key;
+      seg.querySelectorAll('button').forEach((b) => {
+        b.classList.toggle('on', settings[key] === b.dataset.v);
+      });
+    });
+  }
+
+  document.querySelectorAll('.seg').forEach((seg) => {
+    seg.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      settings[seg.dataset.key] = btn.dataset.v;
+      syncSegs();
+      saveSettings();
+      audio();
+      syncAmbient();
+    });
+  });
+
+  // ======================= ЭКРАНЫ =======================
+  function setChrome(menuView) {
+    settingsBox.hidden = !menuView;
+    scoresEl.hidden = menuView;
+    backBtn.hidden = menuView;
+  }
+
+  function showMenu() {
+    mode = 'menu';
+    clearTimeout(overlayTimer);
+    chaseActive = false;
+    stopSiren();
+    police = null;
+    traffic = [];
+    particles = [];
+    distance = 0;
+    bonus = 0;
+    nitro = 100;
+    boostHeld = false;
+    boosting = false;
+
+    badgeEl.textContent = '2D RACER';
+    titleEl.textContent = '2D Гонки';
+    hintEl.textContent = 'Уходи от трафика. Иногда за тобой приедет ДПС.';
+    playBtn.textContent = 'Поехали';
+    bestValEl.textContent = best;
+
+    setChrome(true);
+    overlay.classList.remove('hidden');
+    nitroBtn.hidden = true;
+    syncAmbient();
+  }
+
+  function showGameOver(reason, total) {
+    titleEl.textContent = reason;
+    hintEl.textContent = 'Дистанция ' + total + ' м · попробуй ещё';
+    scoreValEl.textContent = total;
+    bestValEl.textContent = best;
+    playBtn.textContent = 'Ещё раз';
+
+    setChrome(false);
+    overlay.classList.remove('hidden');
+    nitroBtn.hidden = true;
+  }
+
+  function startRace() {
+    clearTimeout(overlayTimer);
+    mode = 'play';
+    distance = 0;
+    bonus = 0;
+    roadScroll = 0;
+    spawnTimer = 0.7;
+    traffic = [];
+    particles = [];
+    police = null;
+    chaseActive = false;
+    chaseTime = 0;
+    nitro = 100;
+    boostHeld = false;
+    boosting = false;
+    shake = 0;
+    flash = 0;
+    toast = null;
+    player.x = W / 2;
+    player.vx = 0;
+    pointerActive = false;
+    nextPoliceAt = 420 + Math.random() * 380;
+
+    initPuddles();
+    overlay.classList.add('hidden');
+    nitroBtn.hidden = false;
+    audio();
+    stopSiren();
+    syncAmbient();
+  }
+
+  // ======================= ИГРОВАЯ ЛОГИКА =======================
+  function laneX(i) {
+    return ROAD_L + LANE_W * (i + 0.5);
+  }
+
+  function totalScore() {
+    return Math.floor(distance + bonus);
+  }
+
+  function spawnInterval() {
+    const t = TRAFFIC_CFG[settings.traffic];
+    return t.interval * Math.max(0.8, 320 / Math.max(1, worldSpeed));
+  }
+
+  function addTraffic(lane) {
+    const pal = CAR_COLORS[(Math.random() * CAR_COLORS.length) | 0];
+    traffic.push({
+      x: laneX(lane),
+      y: -100,
+      w: CAR_W,
+      h: CAR_H,
+      lane,
+      vy: Math.max(60, worldSpeed * (0.34 + Math.random() * 0.3)),
+      body: pal[0],
+      dark: pal[1],
+    });
+  }
+
+  function spawnTraffic() {
+    // не даём перекрыть все полосы сразу — один путь всегда должен оставаться
+    let nearTop = 0;
+    for (const c of traffic) if (c.y < 240) nearTop++;
+    if (nearTop >= 3) return;
+
+    const lane = (Math.random() * LANES) | 0;
+    if (!traffic.some((c) => c.lane === lane && c.y < 180)) addTraffic(lane);
+
+    const extra = TRAFFIC_CFG[settings.traffic].extra;
+    if (Math.random() < extra) {
+      const other = (lane + 2 + ((Math.random() * 2) | 0)) % LANES;
+      if (!traffic.some((c) => c.lane === other && c.y < 180)) addTraffic(other);
+    }
+  }
+
+  function hit(a, b, padX, padY) {
+    padX = padX || 0;
+    padY = padY || 0;
+    return (
+      Math.abs(a.x - b.x) < (a.w + b.w) / 2 - padX &&
+      Math.abs(a.y - b.y) < (a.h + b.h) / 2 - padY
+    );
+  }
+
+  function startChase() {
+    chaseActive = true;
+    chaseTotal = chaseTime = 11 + Math.random() * 4;
+    police = { x: player.x, y: H + 130, w: 46, h: 82, vx: 0 };
+    toast = { text: 'ПОГОНЯ ДПС!', t: 1.8, color: '#ff6b6b' };
+    startSiren();
+    sound('alert');
+  }
+
+  function endChase(success, text) {
+    chaseActive = false;
+    stopSiren();
+    police = null;
+    if (success) {
+      bonus += 150;
+      toast = { text: text || 'Оторвался! +150 м', t: 2.2, color: '#7ef0a8' };
+      sound('escape');
+    }
+    const cfg = POLICE_CFG[settings.police];
+    nextPoliceAt = distance + cfg.min + Math.random() * cfg.spread;
+  }
+
+  function gameOver(reason) {
+    if (mode !== 'play') return;
+    mode = 'over';
+    chaseActive = false;
+    police = null;
+    stopSiren();
+    syncAmbient();
+    flash = 0.9;
+    shake = 20;
+    sound('crash');
+    if (navigator.vibrate) navigator.vibrate([40, 60, 90]);
+
+    burst(player.x, player.y, 26, ['#ffd166', '#ff7b54', '#ff4d4d', '#ffffff'], 300);
+    burst(player.x, player.y, 12, ['#8d99ae', '#5c677d'], 160);
+
+    const total = totalScore();
+    if (total > best) {
+      best = total;
+      try { localStorage.setItem('racer-best', String(best)); } catch (e) { /* ignore */ }
+    }
+
+    clearTimeout(overlayTimer);
+    overlayTimer = setTimeout(() => {
+      if (mode === 'over') showGameOver(reason, total);
+    }, 800);
+  }
+
+  function updateChase(dt) {
+    if (!police) return;
+    const p = police;
+
+    const maxLat = 300 + (settings.diff === 'hard' ? 60 : 0);
+    const desiredVx = clamp((player.x - p.x) * 5, -maxLat, maxLat);
+    p.vx += (desiredVx - p.vx) * Math.min(1, dt * 9);
+    p.x += p.vx * dt;
+    p.x = clamp(p.x, ROAD_L + p.w / 2, ROAD_R - p.w / 2);
+
+    chaseTime -= dt;
+    const urgency = 1 - Math.max(0, chaseTime) / chaseTotal;
+    const aligned = Math.abs(p.x - player.x) < 34;
+    const gap = (aligned ? 62 : 118) - urgency * 30;
+
+    let targetY = player.y + gap;
+    if (boosting) targetY = H + 170;
+    p.y += (targetY - p.y) * Math.min(1, dt * 1.9);
+
+    // ДПС врезался в трафик (только при реальном перекрытии по полосе)
+    for (const c of traffic) {
+      if (hit(p, c, 12, 4)) {
+        burst(p.x, p.y, 20, ['#ffd166', '#ff4d4d', '#ffffff'], 260);
+        endChase(true, 'ДПС врезался! +150 м');
+        return;
+      }
+    }
+
+    // Догнали
+    if (p.y - player.y < 46 && Math.abs(p.x - player.x) < 36) {
+      burst(player.x, player.y, 18, ['#ff4d4d', '#ffffff'], 240);
+      gameOver('Тебя догнал ДПС');
+      return;
+    }
+
+    if (chaseTime <= 0) endChase(true, 'Оторвался! +150 м');
+  }
+
+  function update(dt) {
+    elapsed += dt;
+
+    if (shake > 0) shake = Math.max(0, shake - dt * 55);
+    if (flash > 0) flash = Math.max(0, flash - dt * 2.6);
+    if (toast) {
+      toast.t -= dt;
+      if (toast.t <= 0) toast = null;
+    }
+
+    updateRain(dt);
+    updateParticles(dt);
+
+    if (mode === 'menu') {
+      worldSpeed = 190;
+      roadScroll += worldSpeed * dt;
+      updatePuddles(dt, worldSpeed * 0.7);
+      player.x = W / 2 + Math.sin(elapsed * 0.9) * 24;
+      return;
+    }
+
+    if (mode === 'over') {
+      worldSpeed = Math.max(0, worldSpeed - 1100 * dt);
+      roadScroll += worldSpeed * dt;
+      updatePuddles(dt, worldSpeed);
+      return;
+    }
+
+    // ---------- заезд ----------
+    boosting = boostHeld && nitro > 0.5;
+    if (boosting) nitro = Math.max(0, nitro - 42 * dt);
+    else nitro = Math.min(100, nitro + 13 * dt);
+    nitroBtn.classList.toggle('on', boosting);
+
+    const dcfg = DIFF_CFG[settings.diff];
+    const base = dcfg.base + Math.min(dcfg.add, distance * dcfg.ramp);
+    worldSpeed = base * (boosting ? 1.55 : 1);
+
+    roadScroll += worldSpeed * dt;
+    distance += worldSpeed * 0.1528 * dt;
+    updatePuddles(dt, worldSpeed);
+
+    // руль: в дождь сцепление хуже
+    const rain = settings.weather === 'rain';
+    const maxLat = rain ? 245 : 300;
+    const resp = rain ? 6.5 : 11;
+
+    let targetVx;
+    if (pointerActive) {
+      targetVx = clamp((pointerX - player.x) * 7, -maxLat, maxLat);
+    } else {
+      const dir = (keyRight ? 1 : 0) - (keyLeft ? 1 : 0);
+      targetVx = dir * maxLat;
+    }
+
+    player.vx += (targetVx - player.vx) * Math.min(1, dt * resp);
+    player.x += player.vx * dt;
+    player.x = clamp(player.x, ROAD_L + player.w / 2 + 4, ROAD_R - player.w / 2 - 4);
+
+    // выхлоп нитро
+    if (boosting && Math.random() < 0.7) {
+      addParticle(
+        player.x + (Math.random() - 0.5) * 20,
+        player.y + player.h / 2 + 4,
+        (Math.random() - 0.5) * 60,
+        260 + Math.random() * 160,
+        0.25,
+        3 + Math.random() * 3,
+        Math.random() < 0.5 ? '#8ee6ff' : '#ffd166'
+      );
+    }
+
+    // трафик
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawnTraffic();
+      spawnTimer = spawnInterval();
+    }
+
+    for (let i = traffic.length - 1; i >= 0; i--) {
+      const c = traffic[i];
+      c.y += c.vy * dt;
+      if (c.y > H + 110) traffic.splice(i, 1);
+    }
+
+    for (const c of traffic) {
+      if (hit(player, c, 3, 6)) {
+        gameOver('Авария');
+        return;
+      }
+    }
+
+    updateEngine();
+
+    // погоня
+    if (chaseActive) updateChase(dt);
+    else if (distance > nextPoliceAt) startChase();
+  }
+
+  // ======================= ОТРИСОВКА =======================
+  function drawBackground() {
+    // трава
+    const gg = ctx.createLinearGradient(0, 0, 0, H);
+    gg.addColorStop(0, '#16301c');
+    gg.addColorStop(1, '#0d1f13');
+    ctx.fillStyle = gg;
+    ctx.fillRect(0, 0, W, H);
+
+    // полосы травы (движение)
+    ctx.fillStyle = 'rgba(255,255,255,.022)';
+    const period = 96;
+    const off = roadScroll % (period * 2);
+    for (let y = -period * 2; y < H + period * 2; y += period * 2) {
+      ctx.fillRect(0, y + off, W, period);
+    }
+
+    // бордюры
+    const seg = 40;
+    const kOff = roadScroll % (seg * 2);
+    for (let i = -2; i < H / seg + 3; i++) {
+      const y = i * seg + kOff;
+      ctx.fillStyle = i % 2 === 0 ? '#d94a42' : '#f2f2f2';
+      ctx.fillRect(ROAD_L - 13, y, 13, seg);
+      ctx.fillRect(ROAD_R, y, 13, seg);
+    }
+
+    // асфальт
+    const rg = ctx.createLinearGradient(ROAD_L, 0, ROAD_R, 0);
+    rg.addColorStop(0, '#272a30');
+    rg.addColorStop(0.5, '#3a3e46');
+    rg.addColorStop(1, '#272a30');
+    ctx.fillStyle = rg;
+    ctx.fillRect(ROAD_L, 0, ROAD_R - ROAD_L, H);
+
+    // кромка
+    ctx.fillStyle = 'rgba(240,240,240,.75)';
+    ctx.fillRect(ROAD_L + 7, 0, 3, H);
+    ctx.fillRect(ROAD_R - 10, 0, 3, H);
+
+    // прерывистая разметка
+    const dashH = 34;
+    const gapH = 30;
+    const per = dashH + gapH;
+    const dOff = roadScroll % per;
+    ctx.fillStyle = 'rgba(235,235,235,.62)';
+    for (let l = 1; l < LANES; l++) {
+      const x = ROAD_L + LANE_W * l;
+      for (let y = dOff - per; y < H + per; y += per) {
+        ctx.fillRect(x - 2, y, 4, dashH);
+      }
+    }
+
+    // мокрый асфальт и лужи
+    if (settings.weather === 'rain') {
+      const wg = ctx.createLinearGradient(ROAD_L, 0, ROAD_R, 0);
+      wg.addColorStop(0, 'rgba(110,160,255,.05)');
+      wg.addColorStop(0.5, 'rgba(150,200,255,.13)');
+      wg.addColorStop(1, 'rgba(110,160,255,.05)');
+      ctx.fillStyle = wg;
+      ctx.fillRect(ROAD_L, 0, ROAD_R - ROAD_L, H);
+
+      for (const p of puddles) {
+        ctx.save();
+        ctx.globalAlpha = 0.16;
+        ctx.fillStyle = '#a8d8ff';
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, p.rx, p.ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
+  function drawCar(x, y, w, h, body, dark) {
+    const hw = w / 2;
+    const hh = h / 2;
+
+    // тень
+    ctx.fillStyle = 'rgba(0,0,0,.32)';
+    roundRect(x - hw + 2, y - hh + 6, w, h, 11);
+    ctx.fill();
+
+    // кузов
+    const g = ctx.createLinearGradient(x - hw, 0, x + hw, 0);
+    g.addColorStop(0, dark);
+    g.addColorStop(0.25, body);
+    g.addColorStop(0.55, body);
+    g.addColorStop(1, dark);
+    roundRect(x - hw, y - hh, w, h, 11);
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    // блик
+    ctx.fillStyle = 'rgba(255,255,255,.12)';
+    roundRect(x - hw + 5, y - hh + 4, w - 10, 9, 5);
+    ctx.fill();
+
+    // крыша
+    ctx.fillStyle = 'rgba(0,0,0,.2)';
+    roundRect(x - hw + 8, y - hh + 30, w - 16, h - 50, 6);
+    ctx.fill();
+
+    // лобовое стекло
+    ctx.fillStyle = 'rgba(180,220,245,.85)';
+    roundRect(x - hw + 8, y - hh + 15, w - 16, 13, 5);
+    ctx.fill();
+
+    // заднее стекло
+    ctx.fillStyle = 'rgba(150,195,230,.55)';
+    roundRect(x - hw + 9, y + hh - 29, w - 18, 10, 4);
+    ctx.fill();
+
+    // фары
+    ctx.fillStyle = 'rgba(255,246,205,.95)';
+    ctx.fillRect(x - hw + 6, y - hh + 1, 9, 5);
+    ctx.fillRect(x + hw - 15, y - hh + 1, 9, 5);
+
+    // стопы
+    ctx.fillStyle = 'rgba(255,70,60,.9)';
+    ctx.fillRect(x - hw + 6, y + hh - 5, 9, 4);
+    ctx.fillRect(x + hw - 15, y + hh - 5, 9, 4);
+  }
+
+  function drawPlayer() {
+    const x = player.x;
+    const y = player.y;
+    const hw = player.w / 2;
+    const hh = player.h / 2;
+
+    // лучи фар
+    const beam = settings.weather === 'clear' ? 0.09 : 0.2;
+    ctx.save();
+    ctx.globalAlpha = beam;
+    const bg = ctx.createLinearGradient(0, y - hh, 0, y - hh - 180);
+    bg.addColorStop(0, 'rgba(255,248,205,1)');
+    bg.addColorStop(1, 'rgba(255,248,205,0)');
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(x - hw + 8, y - hh + 2);
+    ctx.lineTo(x - hw - 28, y - hh - 175);
+    ctx.lineTo(x + hw + 28, y - hh - 175);
+    ctx.lineTo(x + hw - 8, y - hh + 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    drawCar(x, y, player.w, player.h, '#e63946', '#8a1220');
+  }
+
+  function drawPolice() {
+    const p = police;
+    const blink = Math.floor(elapsed * 9) % 2 === 0;
+
+    // мигающее свечение
+    ctx.save();
+    const glow = blink ? 'rgba(255,60,60,.55)' : 'rgba(70,120,255,.55)';
+    const gr = ctx.createRadialGradient(p.x, p.y - 12, 3, p.x, p.y - 12, 78);
+    gr.addColorStop(0, glow);
+    gr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(p.x - 78, p.y - 90, 156, 156);
+    ctx.restore();
+
+    drawCar(p.x, p.y, p.w, p.h, '#eef3f8', '#a7b3bf');
+
+    // синяя полоса
+    ctx.fillStyle = '#2f6bff';
+    ctx.fillRect(p.x - p.w / 2 + 5, p.y - 2, p.w - 10, 15);
+
+    // мигалка
+    ctx.fillStyle = blink ? '#ff3b30' : '#2f6bff';
+    roundRect(p.x - 17, p.y - 15, 14, 9, 3);
+    ctx.fill();
+    ctx.fillStyle = blink ? '#2f6bff' : '#ff3b30';
+    roundRect(p.x + 3, p.y - 15, 14, 9, 3);
+    ctx.fill();
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      const a = Math.max(0, p.life / p.max);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (0.4 + a * 0.6), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawRain() {
+    if (settings.weather !== 'rain') return;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(190,220,255,.5)';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    for (const d of rainDrops) {
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x + d.len * 0.28, d.y + d.len);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFog() {
+    if (settings.weather !== 'fog') return;
+    const g = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+    g.addColorStop(0, 'rgba(205,215,222,.9)');
+    g.addColorStop(1, 'rgba(205,215,222,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H * 0.6);
+
+    ctx.fillStyle = 'rgba(205,215,222,.1)';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function drawBoostFx() {
+    if (!boosting) return;
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(90,200,255,0)');
+    g.addColorStop(1, 'rgba(90,200,255,.9)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+
+  function drawHud() {
+    const kmh = Math.round(worldSpeed * 0.55);
+    const total = totalScore();
+
+    ctx.save();
+
+    // спидометр
+    ctx.fillStyle = 'rgba(10,14,20,.45)';
+    roundRect(12, 12, 106, 46, 12);
+    ctx.fill();
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#fff';
+    ctx.font = '800 27px system-ui, "Segoe UI", Arial, sans-serif';
+    const num = String(kmh);
+    ctx.fillText(num, 22, 42);
+    const nw = ctx.measureText(num).width;
+
+    ctx.fillStyle = 'rgba(255,255,255,.6)';
+    ctx.font = '700 10px system-ui, "Segoe UI", Arial, sans-serif';
+    ctx.fillText('км/ч', 22 + nw + 6, 42);
+
+    // нитро
+    const bx = 12;
+    const by = 66;
+    const bw = 106;
+    const bh = 9;
+    ctx.fillStyle = 'rgba(10,14,20,.45)';
+    roundRect(bx, by, bw, bh, 4.5);
+    ctx.fill();
+
+    const fill = (bw - 4) * (nitro / 100);
+    if (fill > 4) {
+      const ng = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+      ng.addColorStop(0, '#39c6ff');
+      ng.addColorStop(1, '#a6f0ff');
+      ctx.fillStyle = ng;
+      roundRect(bx + 2, by + 2, fill, bh - 4, 2.5);
+      ctx.fill();
+    }
+
+    // дистанция
+    ctx.fillStyle = 'rgba(10,14,20,.45)';
+    roundRect(W - 12 - 118, 12, 118, 46, 12);
+    ctx.fill();
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff';
+    ctx.font = '800 21px system-ui, "Segoe UI", Arial, sans-serif';
+    ctx.fillText(total + ' м', W - 24, 42);
+
+    // погоня
+    if (chaseActive) {
+      const blink = Math.floor(elapsed * 7) % 2 === 0;
+      const label = 'ПОГОНЯ ДПС';
+      ctx.textAlign = 'center';
+      ctx.font = '800 15px system-ui, "Segoe UI", Arial, sans-serif';
+      const lw = ctx.measureText(label).width + 32;
+      const lx = W / 2 - lw / 2;
+
+      ctx.fillStyle = 'rgba(10,14,20,.6)';
+      roundRect(lx, 88, lw, 27, 13);
+      ctx.fill();
+
+      ctx.fillStyle = blink ? '#ff5a5a' : '#7fb0ff';
+      ctx.fillText(label, W / 2, 107);
+
+      const prog = Math.max(0, chaseTime / chaseTotal);
+      ctx.fillStyle = 'rgba(10,14,20,.55)';
+      roundRect(lx, 119, lw, 6, 3);
+      ctx.fill();
+
+      if (prog > 0.02) {
+        ctx.fillStyle = '#ffd166';
+        roundRect(lx, 119, lw * prog, 6, 3);
+        ctx.fill();
+      }
+    }
+
+    // всплывающее сообщение
+    if (toast) {
+      const a = Math.min(1, toast.t * 2);
+      ctx.globalAlpha = a;
+      ctx.textAlign = 'center';
+      ctx.font = '800 19px system-ui, "Segoe UI", Arial, sans-serif';
+      const tw = ctx.measureText(toast.text).width + 30;
+
+      ctx.fillStyle = 'rgba(10,14,20,.6)';
+      roundRect(W / 2 - tw / 2, 196, tw, 36, 18);
+      ctx.fill();
+
+      ctx.fillStyle = toast.color;
+      ctx.fillText(toast.text, W / 2, 220);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.save();
+    if (shake > 0.2) {
+      ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+    }
+
+    drawBackground();
+    for (const c of traffic) drawCar(c.x, c.y, c.w, c.h, c.body, c.dark);
+    if (police) drawPolice();
+    drawPlayer();
+    drawParticles();
+    drawRain();
+    drawFog();
+    drawBoostFx();
+
+    ctx.restore();
+
+    if (mode === 'play' || mode === 'over') drawHud();
+
+    if (flash > 0.01) {
+      ctx.fillStyle = 'rgba(255,255,255,' + (flash * 0.55).toFixed(3) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  // ======================= УПРАВЛЕНИЕ =======================
+  function pointerToX(e) {
+    const rect = canvas.getBoundingClientRect();
+    return ((e.clientX - rect.left) / Math.max(1, rect.width)) * W;
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (mode !== 'play') return;
+    e.preventDefault();
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    pointerActive = true;
+    pointerX = clamp(pointerToX(e), ROAD_L, ROAD_R);
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!pointerActive) return;
+    pointerX = clamp(pointerToX(e), ROAD_L, ROAD_R);
+  });
+
+  function endPointer() {
+    pointerActive = false;
+  }
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', endPointer);
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    const code = e.code;
+    if (code === 'ArrowLeft' || code === 'KeyA') {
+      keyLeft = true;
+      e.preventDefault();
+    } else if (code === 'ArrowRight' || code === 'KeyD') {
+      keyRight = true;
+      e.preventDefault();
+    } else if (code === 'Space' || code === 'ShiftLeft' || code === 'ShiftRight') {
+      boostHeld = true;
+      e.preventDefault();
+    } else if (code === 'Enter' && mode !== 'play') {
+      startRace();
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    const code = e.code;
+    if (code === 'ArrowLeft' || code === 'KeyA') keyLeft = false;
+    else if (code === 'ArrowRight' || code === 'KeyD') keyRight = false;
+    else if (code === 'Space' || code === 'ShiftLeft' || code === 'ShiftRight') boostHeld = false;
+  });
+
+  function pressNitro(on) {
+    boostHeld = on;
+    if (on) sound('nitro');
+  }
+
+  nitroBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    pressNitro(true);
+  });
+  nitroBtn.addEventListener('pointerup', (e) => {
+    e.stopPropagation();
+    pressNitro(false);
+  });
+  nitroBtn.addEventListener('pointercancel', () => pressNitro(false));
+  nitroBtn.addEventListener('pointerleave', () => pressNitro(false));
+
+  playBtn.addEventListener('click', () => {
+    if (mode !== 'play') startRace();
+  });
+  backBtn.addEventListener('click', showMenu);
+
+  // ======================= ЦИКЛ =======================
+  let last = performance.now();
+
+  function loop(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    last = performance.now();
+    if (document.hidden) {
+      keyLeft = false;
+      keyRight = false;
+      pointerActive = false;
+      boostHeld = false;
+    }
+  });
+
+  // ======================= СТАРТ =======================
+  loadSettings();
+  syncSegs();
+  initRain();
+  initPuddles();
+  bestValEl.textContent = best;
+  showMenu();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
